@@ -1,0 +1,40 @@
+This repository is built on the starter scaffold for a transformer assignment, used
+in INFO7375 (Semantic Intelligence in Large Language Models) at Northeastern
+University and derived from CMU 11-667.
+
+The scaffold itself derives from nanoGPT (Andrej Karpathy, MIT) and PyTorch; their
+license texts are reproduced in copyright/.
+
+Provided by the course, not written by me:
+
+  src/lm/utils.py                device selection, parameter and disk-size estimates
+  src/version.py
+  src/tokenizer/english.py       trains the reference English tokenizer
+  src/tokenizer/multilingual.py  English vs Thai token-count comparison
+  src/tokenizer/visualize.py     prints a learned vocabulary
+  src/pytest_utils/              Gradescope scoring plugin
+  tests/test_env.py              environment checks
+  tests/test_model.py            attention and forward-pass tests
+  tests/test_train.py            sampler, schedule, loss and training tests
+  tests/test_generate.py         temperature-sampling test
+  configs/GPT-tiny.yaml          the baseline configuration
+  scripts/                       formatting and submission helpers
+  data/english-tokenizer.json, data/prefixes.jsonl, data/make_ppl_example_jsonl.py
+  docs/STARTER_README.md         the original course README
+
+Written by me:
+
+  src/tokenizer/bpe.py           BPE merge, encode, decode; ASCII and Unicode variants
+  src/lm/model.py                attention, feed-forward, decoder blocks, DecoderLM
+  src/lm/train.py                samplers, cosine schedule, loss, training loop,
+                                 plus checkpoint/resume and the int32 batch widening
+  src/lm/generate.py             temperature sampling and batched generation
+  src/lm/evaluate_perplexity.py
+  src/lm/use_pythia.py
+  configs/ (all but GPT-tiny.yaml)
+  slurm/                         cluster bootstrap and all Slurm job scripts
+  tests/test_tokenizer.py        the three counterexamples, and the offline fixture path
+  results/, figures/, docs/      experiments, measurements and write-ups
+
+The pre-tokenized training corpus is distributed by the course at
+https://huggingface.co/datasets/yimingzhang/llms-hw2 and is not redistributed here.

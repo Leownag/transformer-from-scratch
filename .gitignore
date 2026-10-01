@@ -1,0 +1,27 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.DS_Store
+
+# Pre-tokenized corpus, 544 MB -- see README for the download command
+data/tokens.npz
+
+# Training artifacts
+outputs/
+wandb/
+slurm/logs/*
+!slurm/logs/.gitkeep
+
+# Written by the pytest plugin on every run; the committed snapshot is results/
+/results.json
+
+# Gradescope bundles
+submission/
+submission.zip
+
+# LaTeX build artifacts
+*.aux
+*.out
