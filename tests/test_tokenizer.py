@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from transformers import AutoTokenizer
 from tokenizer.bpe import ASCIIBPETokenizer, string_to_ascii
 
@@ -119,12 +121,17 @@ def test_two_merges():
 
 @max_score(5)
 def test_100_merges():
-    import urllib.request
+    # The expected merge rules below are for the whole corpus, so it is vendored rather
+    # than excerpted; the download is only a fallback if the fixture is missing.
+    fixture = Path(__file__).parent / "fixtures" / "tinyshakespeare.txt"
+    if fixture.exists():
+        shakespear = fixture.read_text(encoding="utf-8")
+    else:
+        import urllib.request
 
-    # Download the text directly from Karpathy's repo
-    url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-    with urllib.request.urlopen(url) as response:
-        shakespear = response.read().decode('utf-8')
+        url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
+        with urllib.request.urlopen(url) as response:
+            shakespear = response.read().decode("utf-8")
 
     tokenizer = ASCIIBPETokenizer.from_data(shakespear, 100)
     assert tokenizer.merge_rules == {
