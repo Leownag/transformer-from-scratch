@@ -222,3 +222,185 @@ class FeedForward(nn.Module):
         y = F.gelu(self.linear_in(x))
         z = self.dropout(self.linear_out(y))
         return z
+
+
+class DecoderBlock(nn.Module):
+    """A single decoder block in a decoder language model."""
+
+    def __init__(self, n_embd: int, n_head: int):
+        """Initialize the modules used in a decoder block."""
+        super().__init__()
+
+        self.ln_1 = nn.LayerNorm(n_embd)
+        self.mha = MultiHeadAttention(n_embd, n_head)
+        self.ff = FeedForward(n_embd)
+        self.ln_2 = nn.LayerNorm(n_embd)
+
+    def forward(
+        self, x: torch.FloatTensor, attention_mask: torch.FloatTensor | None
+    ) -> torch.FloatTensor:
+        """A full forward pass of the decoder block.
+
+        Args:
+            x: embeddings or hidden states (B x S x D) from the previous decoder block
+            attention_mask (optional): Mask indicating tokens that shouldn't
+              be included in self-attention (B x S). 1 stands for a token that is
+              included, and 0 stands for a token that isn't.
+        Returns:
+            y: outputs of the current decoder block
+
+        Different from what you saw in class which uses ReLU as the activation,
+        we are going to follow GPT-2 which uses GeLU. You should also apply
+        self.dropout to the output.
+
+        A note on where to place layer normalization (LN): in the lecture, you
+        saw "post-LN", which applies LN to the outputs of MHA / FF modules after
+        the residual is added. Another approach to do this is "pre-LN", which
+        appiles LN to the inputs of the attention and feedforward modules. Both
+        implementations should pass the tests. See explanations here:
+        https://sh-tsang.medium.com/review-pre-ln-transformer-on-layer-normalization-in-the-transformer-architecture-b6c91a89e9ab
+        """
+
+        x = x + self.mha(self.ln_1(x), attention_mask)
+        x = x + self.ff(self.ln_2(x))
+        return x
+
+
+class DecoderLM(nn.Module):
+    """The decoder language model."""
+
+    def __init__(
+        self,
+        n_vocab: int,
+        n_embd: int,
+        n_head: int,
+        n_positions: int,
+        n_layer: int,
+        p_dropout: float = 0.1,
+    ):
+        super().__init__()
+
+        self.n_vocab = n_vocab
+        self.n_embd = n_embd
+        self.n_head = n_head
+        self.n_positions = n_positions
+        self.n_layer = n_layer
+        self.p_dropout = p_dropout
+
+        self.token_embeddings = nn.Embedding(n_vocab, n_embd)
+        self.position_embeddings = nn.Embedding(n_positions, n_embd)
+        self.blocks = nn.ModuleList(
+            [DecoderBlock(n_embd, n_head) for _ in range(n_layer)]
+        )
+        self.ln = nn.LayerNorm(n_embd)
+        self.dropout = nn.Dropout(self.p_dropout)
+
+        # initialize weights according to nanoGPT
+        self.apply(self._init_weights)
+        for pn, p in self.named_parameters():
+            if pn.endswith("c_proj.weight"):
+                torch.nn.init.normal_(p, mean=0.0, std=0.02 / torch.sqrt(2 * n_layer))
+
+        # count flops per token according to nanoGPT
+        self.flops_per_token = (
+            6 * count_params(self) + 12 * n_layer * n_embd * n_positions
+        )
+
+    def embed(
+        self,
+        input_ids: torch.LongTensor,
+        attention_mask: torch.FloatTensor | None = None,
+    ) -> torch.FloatTensor:
+        """Convert input_ids to embeddings (token_embeddings + positional_embeddings).
+
+        Args:
+            input_ids: tokens ids with shape (B x S)
+            attention_mask (optional): Mask indicating whether tokens should be
+              ignored.
+
+        Returns:
+            embeddings: token representations with shape (B x S x D)
+        """
+
+        """
+        Position ids are indices of tokens in the sequence. When attention_mask
+        isn't provided, they are simply [0, 1, 2, ...] for every sequence in the
+        batch. When they are provided, you should ignore tokens with attention_mask
+        equal to 0.
+        
+        Example (B = 2, S = 5):
+        
+        attention_mask = tensor([
+         [0., 0., 1., 1., 1.],
+         [1., 1., 1., 1., 1.]
+        ])
+
+        position_ids = tensor([
+         [0, 0, 0, 1, 2],
+         [0, 1, 2, 3, 4]
+        ])
+
+        Note that the position ids for masked out tokens do not matter, as long
+        as they don't trigger out-of-bounds errors when fed into the embedding
+        layer. I.e., they should be within [0, n_positions).
+
+        Hint: torch.cumsum
+        """
+
+        assert input_ids.shape[1] <= self.n_positions
+        if attention_mask is None:
+            position_ids = torch.arange(
+                input_ids.shape[1], device=input_ids.device
+            ).unsqueeze(0).expand(input_ids.shape[0], -1)
+        else:
+            position_ids = (torch.cumsum(attention_mask, dim=1) - 1).clamp(min=0).long()
+
+        token_embeddings = self.token_embeddings(input_ids)
+        positional_embeddings = self.position_embeddings(position_ids)
+        return self.dropout(token_embeddings + positional_embeddings)
+
+    def token_logits(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        """Project the final hidden states of the model to token logits.
+
+        Args:
+            x: hidden states produced by the final decoder block (B x S x D)
+
+        Returns:
+            logits: logits corresponding to the predicted next token likelihoods (B x S x V)
+
+        Hint: Question 2.2.
+        """
+
+        logits = x @ self.token_embeddings.weight.T
+        return logits
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor,
+        attention_mask: torch.FloatTensor | None = None,
+    ) -> torch.FloatTensor:
+        """A forward pass of the decoder LM, converting input_ids to token logits.
+
+        Args:
+            input_ids: tokens ids with shape (B x S)
+            attention_mask (optional): Mask indicating whether tokens should be
+              ignored.
+
+        Returns:
+            logits: logits corresponding to the predicted next token likelihoods (B x S x V)
+        """
+
+        x = self.embed(input_ids, attention_mask)
+        for block in self.blocks:
+            x = block(x, attention_mask)
+        x = self.ln(x)
+        logits = self.token_logits(x)
+        return logits
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
