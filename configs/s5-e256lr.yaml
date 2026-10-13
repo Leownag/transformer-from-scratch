@@ -1,0 +1,15 @@
+output_dir: outputs/s5-e256lr
+tokenizer_encoding: gpt2
+model_config:
+  n_embd: 256
+  n_head: 8
+  n_positions: 256
+  n_layer: 6
+device: auto
+batch_size: 64
+seq_len: 256
+num_warmup_steps: 28
+num_training_steps: 551
+grad_accumulation_steps: 1
+min_lr: 3e-4
+max_lr: 3e-3
