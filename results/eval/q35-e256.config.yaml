@@ -1,0 +1,15 @@
+output_dir: outputs/q35-e256
+tokenizer_encoding: gpt2
+model_config:
+  n_embd: 256
+  n_head: 8
+  n_positions: 256
+  n_layer: 6
+device: auto
+batch_size: 64
+seq_len: 256
+num_warmup_steps: 1102
+num_training_steps: 55115
+grad_accumulation_steps: 1
+min_lr: 1.0e-05
+max_lr: 0.001
