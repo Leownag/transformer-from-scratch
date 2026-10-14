@@ -84,6 +84,10 @@ on a starter scaffold derived from CMU 11-667 and nanoGPT. The function signatur
 and test suite were provided; the implementations, configurations, cluster tooling, experiments
 and write-ups are mine.
 
+[`docs/model-card.md`](docs/model-card.md) records the trained model — architecture, training
+data, evaluation, and where it fails. The weights are not distributed; the config and Slurm job
+reproduce it in about five hours on one V100.
+
 [`NOTICE`](NOTICE) lists ownership file by file. [`docs/provenance.md`](docs/provenance.md)
 covers the changes I made to files I was not asked to touch — a wrong model name in the starter,
 an fp16-on-MPS instability, and the two additions that made the final run survivable.
